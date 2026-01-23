@@ -1,0 +1,40 @@
+﻿@model IEnumerable<TaskFlowApp.Models.Task>
+
+@{
+    ViewData["Title"] = "Task List";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Deadline</th>
+            <th>Status</th>
+            <th>Category</th>
+            <th>User</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var task in Model)
+        {
+            <tr>
+                <td>@task.Title</td>
+                <td>@task.Description</td>
+                <td>@task.Deadline</td>
+                <td>@task.Status</td>
+                <td>@task.Category.Name</td>
+                <td>@task.User.FullName</td>
+                <td>
+                    <a href="@Url.Action("Edit", "Task", new { id = task.Id })">Edit</a> |
+                    <a href="@Url.Action("Delete", "Task", new { id = task.Id })">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a href="@Url.Action("Create", "Task")" class="btn btn-primary">Create New Task</a>
