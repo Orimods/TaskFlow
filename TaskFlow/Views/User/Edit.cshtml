@@ -1,38 +1,39 @@
 ﻿@model TaskFlowApp.Models.User
 
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Редактирование пользователя";
 }
 
-<h1>Edit</h1>
+<h1>@ViewData["Title"]</h1>
 
-<h4>User</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Id" />
-            <div class="form-group">
-                <label asp-for="FullName" class="control-label"></label>
-                <input asp-for="FullName" class="form-control" />
-                <span asp-validation-for="FullName" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="RegisteredAt" class="control-label"></label>
-                <input asp-for="RegisteredAt" class="form-control" />
-                <span asp-validation-for="RegisteredAt" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
+<form asp-action="Edit" method="post" class="row g-3">
+    <input asp-for="Id" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="col-md-6">
+        <label asp-for="FullName" class="form-label"></label>
+        <input asp-for="FullName" class="form-control" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
     </div>
-</div>
-
-<div>
-    <a asp-action="Index">Back to List</a>
-</div>
+    <div class="col-md-6">
+        <label asp-for="UserName" class="form-label"></label>
+        <input asp-for="UserName" class="form-control" />
+        <span asp-validation-for="UserName" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Role" class="form-label"></label>
+        <select asp-for="Role" asp-items="ViewBag.Role" class="form-select"></select>
+        <span asp-validation-for="Role" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="RegisteredAt" class="form-label"></label>
+        <input asp-for="RegisteredAt" class="form-control" />
+        <span asp-validation-for="RegisteredAt" class="text-danger"></span>
+    </div>
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Назад</a>
+    </div>
+</form>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

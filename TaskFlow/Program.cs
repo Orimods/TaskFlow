@@ -1,45 +1,56 @@
+п»їusing Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using TaskFlowApp.Data;
 
-namespace TaskFlow
+namespace TaskFlow;
+
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
+        var builder = WebApplication.CreateBuilder(args);
 
-            // Добавляем сервисы в контейнер
-            builder.Services.AddControllersWithViews();
-
-            // Добавляем контекст данных в контейнер DI
-            builder.Services.AddDbContext<AppDbContext>(options =>
+        builder.Services.AddControllersWithViews();
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(options =>
             {
-                var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-                options.UseSqlite(connectionString);  // Используем SQLite для базы данных
+                options.LoginPath = "/Account/Login";
+                options.AccessDeniedPath = "/Account/AccessDenied";
             });
 
-            var app = builder.Build();
+        builder.Services.AddAuthorization();
 
-            // Настройка HTTP запроса
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Home/Error");
+        builder.Services.AddDbContext<AppDbContext>(options =>
+        {
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+            options.UseSqlite(connectionString);
+        });
 
-                app.UseHsts();
-            }
+        var app = builder.Build();
 
-            app.UseHttpsRedirection();
-            app.UseRouting();
-            app.UseAuthorization();
+        using (var scope = app.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.Database.Migrate();
+        }
 
-            app.MapStaticAssets();
-            app.MapControllerRoute(
+        if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Home/Error");
+            app.UseHsts();
+        }
+
+        app.UseHttpsRedirection();
+        app.UseRouting();
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapStaticAssets();
+        app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}")
-                .WithStaticAssets();
+            .WithStaticAssets();
 
-            app.Run();
-        }
+        app.Run();
     }
 }

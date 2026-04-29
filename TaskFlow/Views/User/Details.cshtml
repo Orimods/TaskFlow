@@ -1,30 +1,44 @@
 ﻿@model TaskFlowApp.Models.User
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Пользователь";
 }
 
-<h1>Details</h1>
+<h1>@Model.FullName</h1>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Логин</dt>
+            <dd class="col-sm-9">@Model.UserName</dd>
+            <dt class="col-sm-3">Роль</dt>
+            <dd class="col-sm-9">@Model.Role</dd>
+            <dt class="col-sm-3">Дата регистрации</dt>
+            <dd class="col-sm-9">@Model.RegisteredAt.ToString("dd.MM.yyyy HH:mm")</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <h2 class="h5">Задачи пользователя</h2>
+        @if (Model.Tasks.Any())
+        {
+            <ul class="mb-0">
+            @foreach (var task in Model.Tasks)
+            {
+                <li>@task.Title (@(task.Category?.Name ?? "Без категории"))</li>
+            }
+            </ul>
+        }
+        else
+        {
+            <p class="mb-0 text-muted">У пользователя пока нет задач.</p>
+        }
+    </div>
+</div>
 
 <div>
-    <h4>User</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.FullName)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.FullName)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.RegisteredAt)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.RegisteredAt)
-        </dd>
-    </dl>
-</div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Редактировать</a>
+    <a asp-action="Index" class="btn btn-outline-secondary">Назад</a>
 </div>

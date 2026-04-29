@@ -1,0 +1,9 @@
+﻿@{
+    ViewData["Title"] = "Доступ запрещён";
+}
+
+<div class="alert alert-warning">
+    <h1 class="h3">@ViewData["Title"]</h1>
+    <p>У вашей роли нет прав для выполнения этой операции.</p>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-primary">На главную</a>
+</div>

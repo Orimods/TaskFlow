@@ -1,31 +1,41 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using TaskFlow.Models;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace TaskFlowApp.Models
+namespace TaskFlowApp.Models;
+
+public class Task
 {
-    public class Task
-    {
-        public int Id { get; set; }
+    public int Id { get; set; }
 
-        [Required]
-        [MaxLength(200)]
-        public string Title { get; set; } = string.Empty;
+    [Required]
+    [MaxLength(200)]
+    [Display(Name = "Название")]
+    public string Title { get; set; } = string.Empty;
 
-        [MaxLength(1000)]
-        public string? Description { get; set; }
+    [MaxLength(1000)]
+    [Display(Name = "Описание")]
+    public string? Description { get; set; }
 
-        [Required]
-        public DateTime Deadline { get; set; }
+    [Required]
+    [Display(Name = "Срок выполнения")]
+    [DataType(DataType.Date)]
+    public DateTime Deadline { get; set; }
 
-        public string Status { get; set; } = "New";
+    [Required]
+    [MaxLength(50)]
+    [Display(Name = "Статус")]
+    public string Status { get; set; } = "New";
 
-        [Required]
-        public int CategoryId { get; set; }
-        public Category Category { get; set; } = new Category();  // Связь с категорией
+    [Display(Name = "Категория")]
+    public int? CategoryId { get; set; }
 
-        [Required]
-        public int UserId { get; set; }
-        public User User { get; set; } = new User(); // Связь с пользователем
-    }
+    [Display(Name = "Категория")]
+    public Category? Category { get; set; }
+
+    [Required]
+    [Display(Name = "Пользователь")]
+    public int UserId { get; set; }
+
+    [Display(Name = "Пользователь")]
+    public User User { get; set; } = null!;
 }

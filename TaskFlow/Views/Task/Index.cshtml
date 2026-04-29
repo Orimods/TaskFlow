@@ -1,40 +1,46 @@
 ﻿@model IEnumerable<TaskFlowApp.Models.Task>
 
 @{
-    ViewData["Title"] = "Task List";
+    ViewData["Title"] = "Список задач";
 }
 
-<h1>@ViewData["Title"]</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="mb-0">@ViewData["Title"]</h1>
+        <p class="text-muted mb-0">Обычный пользователь видит только свои задачи.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary">Создать задачу</a>
+</div>
 
-<table class="table">
+<table class="table table-striped align-middle">
     <thead>
         <tr>
-            <th>Title</th>
-            <th>Description</th>
-            <th>Deadline</th>
-            <th>Status</th>
-            <th>Category</th>
-            <th>User</th>
-            <th>Actions</th>
+            <th>Название</th>
+            <th>Срок</th>
+            <th>Статус</th>
+            <th>Категория</th>
+            <th>Пользователь</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var task in Model)
-        {
-            <tr>
-                <td>@task.Title</td>
-                <td>@task.Description</td>
-                <td>@task.Deadline</td>
-                <td>@task.Status</td>
-                <td>@task.Category.Name</td>
-                <td>@task.User.FullName</td>
-                <td>
-                    <a href="@Url.Action("Edit", "Task", new { id = task.Id })">Edit</a> |
-                    <a href="@Url.Action("Delete", "Task", new { id = task.Id })">Delete</a>
-                </td>
-            </tr>
-        }
+    @foreach (var task in Model)
+    {
+        <tr>
+            <td>
+                <div class="fw-semibold">@task.Title</div>
+                <div class="text-muted small">@task.Description</div>
+            </td>
+            <td>@task.Deadline.ToString("dd.MM.yyyy")</td>
+            <td>@task.Status</td>
+            <td>@(task.Category?.Name ?? "Без категории")</td>
+            <td>@task.User.FullName</td>
+            <td class="text-end">
+                <a asp-action="Details" asp-route-id="@task.Id">Открыть</a> |
+                <a asp-action="Edit" asp-route-id="@task.Id">Изменить</a> |
+                <a asp-action="Delete" asp-route-id="@task.Id">Удалить</a>
+            </td>
+        </tr>
+    }
     </tbody>
 </table>
-
-<a href="@Url.Action("Create", "Task")" class="btn btn-primary">Create New Task</a>

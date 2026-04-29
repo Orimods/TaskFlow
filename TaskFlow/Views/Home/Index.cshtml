@@ -1,8 +1,48 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "TaskFlow";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="p-5 mb-4 bg-light rounded-3">
+    <div class="container-fluid py-4">
+        <h1 class="display-5 fw-bold">TaskFlow</h1>
+        <p class="col-md-9 fs-5">
+            Удобная система для планирования задач, распределения ответственности и контроля сроков.
+            Работайте с личными задачами, категориями и командными процессами в одном месте.
+        </p>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a asp-controller="Task" asp-action="Index" class="btn btn-primary btn-lg">Перейти к задачам</a>
+        }
+        else
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-lg">Войти в систему</a>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Задачи</h2>
+                <p>Создавайте задачи, назначайте ответственных, отслеживайте статус и сроки выполнения.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Категории</h2>
+                <p>Разделяйте задачи по направлениям, проектам или рабочим областям.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h2 class="h5">Команда</h2>
+                <p>Разграничивайте доступ: сотрудники работают со своими задачами, руководители контролируют общий процесс.</p>
+            </div>
+        </div>
+    </div>
 </div>

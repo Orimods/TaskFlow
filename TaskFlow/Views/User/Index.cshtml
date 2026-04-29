@@ -1,41 +1,38 @@
 ﻿@model IEnumerable<TaskFlowApp.Models.User>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Пользователи";
 }
 
-<h1>Index</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">@ViewData["Title"]</h1>
+    <a asp-action="Create" class="btn btn-primary">Создать пользователя</a>
+</div>
 
-<p>
-    <a asp-action="Create">Create New</a>
-</p>
-<table class="table">
+<table class="table table-striped align-middle">
     <thead>
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.FullName)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.RegisteredAt)
-            </th>
+            <th>ФИО</th>
+            <th>Логин</th>
+            <th>Роль</th>
+            <th>Задач</th>
             <th></th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model) {
+    @foreach (var item in Model)
+    {
         <tr>
-            <td>
-                @Html.DisplayFor(modelItem => item.FullName)
-            </td>
-            <td>
-                @Html.DisplayFor(modelItem => item.RegisteredAt)
-            </td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+            <td>@item.FullName</td>
+            <td>@item.UserName</td>
+            <td>@item.Role</td>
+            <td>@item.Tasks.Count</td>
+            <td class="text-end">
+                <a asp-action="Details" asp-route-id="@item.Id">Открыть</a> |
+                <a asp-action="Edit" asp-route-id="@item.Id">Изменить</a> |
+                <a asp-action="Delete" asp-route-id="@item.Id">Удалить</a>
             </td>
         </tr>
-}
+    }
     </tbody>
 </table>

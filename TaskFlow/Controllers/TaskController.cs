@@ -1,171 +1,220 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using TaskFlow.Security;
 using TaskFlowApp.Data;
-using TaskFlowApp.Models;
+using TaskEntity = TaskFlowApp.Models.Task;
 
-namespace TaskFlow.Controllers
+namespace TaskFlow.Controllers;
+
+[Authorize]
+public class TaskController : Controller
 {
-    public class TaskController : Controller
+    private readonly AppDbContext _context;
+
+    public TaskController(AppDbContext context)
     {
-        private readonly AppDbContext _context;
+        _context = context;
+    }
 
-        public TaskController(AppDbContext context)
+    public async Task<IActionResult> Index()
+    {
+        var query = _context.Tasks
+            .Include(t => t.Category)
+            .Include(t => t.User)
+            .AsQueryable();
+
+        if (!User.HasElevatedAccess())
         {
-            _context = context;
+            var currentUserId = User.GetUserId();
+            query = query.Where(t => t.UserId == currentUserId);
         }
 
-        // GET: Task
-        public async Task<IActionResult> Index()
+        return View(await query.OrderBy(t => t.Deadline).ToListAsync());
+    }
+
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id is null)
         {
-            var appDbContext = _context.Tasks.Include(t => t.Category).Include(t => t.User);
-            return View(await appDbContext.ToListAsync());
+            return NotFound();
         }
 
-        // GET: Task/Details/5
-        public async Task<IActionResult> Details(int? id)
+        var task = await LoadTaskAsync(id.Value);
+        if (task is null)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var task = await _context.Tasks
-                .Include(t => t.Category)
-                .Include(t => t.User)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (task == null)
-            {
-                return NotFound();
-            }
-
-            return View(task);
+            return NotFound();
         }
 
-        // GET: Task/Create
-        public IActionResult Create()
+        if (!CanAccessTask(task))
         {
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "Id", "Name");
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "FullName");
-            return View();
+            return Forbid();
         }
 
-        // POST: Task/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title,Description,Deadline,Status,CategoryId,UserId")] TaskFlowApp.Models.Task task)
+        return View(task);
+    }
+
+    public async Task<IActionResult> Create()
+    {
+        var task = new TaskEntity
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(task);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "Id", "Name", task.CategoryId);
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "FullName", task.UserId);
-            return View(task);
+            Deadline = DateTime.Today.AddDays(1),
+            Status = "New",
+            UserId = User.GetUserId()
+        };
+
+        await PopulateSelectionsAsync(task);
+        return View(task);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create([Bind("Id,Title,Description,Deadline,Status,CategoryId,UserId")] TaskEntity task)
+    {
+        if (!User.HasElevatedAccess())
+        {
+            task.UserId = User.GetUserId();
         }
 
-        // GET: Task/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        if (ModelState.IsValid)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var task = await _context.Tasks.FindAsync(id);
-            if (task == null)
-            {
-                return NotFound();
-            }
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "Id", "Name", task.CategoryId);
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "FullName", task.UserId);
-            return View(task);
-        }
-
-        // POST: Task/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,Deadline,Status,CategoryId,UserId")] TaskFlowApp.Models.Task task)
-        {
-            if (id != task.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(task);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!TaskExists(task.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "Id", "Name", task.CategoryId);
-            ViewData["UserId"] = new SelectList(_context.Users, "Id", "FullName", task.UserId);
-            return View(task);
-        }
-
-        // GET: Task/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var task = await _context.Tasks
-                .Include(t => t.Category)
-                .Include(t => t.User)
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (task == null)
-            {
-                return NotFound();
-            }
-
-            return View(task);
-        }
-
-        // POST: Task/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var task = await _context.Tasks.FindAsync(id);
-            if (task != null)
-            {
-                _context.Tasks.Remove(task);
-            }
-
+            _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
-        private bool TaskExists(int id)
+        await PopulateSelectionsAsync(task);
+        return View(task);
+    }
+
+    public async Task<IActionResult> Edit(int? id)
+    {
+        if (id is null)
         {
-            return _context.Tasks.Any(e => e.Id == id);
+            return NotFound();
         }
 
+        var task = await LoadTaskAsync(id.Value);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (!CanAccessTask(task))
+        {
+            return Forbid();
+        }
+
+        await PopulateSelectionsAsync(task);
+        return View(task);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,Deadline,Status,CategoryId,UserId")] TaskEntity input)
+    {
+        if (id != input.Id)
+        {
+            return NotFound();
+        }
+
+        var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (!CanAccessTask(task))
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            input.UserId = User.HasElevatedAccess() ? input.UserId : User.GetUserId();
+            await PopulateSelectionsAsync(input);
+            return View(input);
+        }
+
+        task.Title = input.Title;
+        task.Description = input.Description;
+        task.Deadline = input.Deadline;
+        task.Status = input.Status;
+        task.CategoryId = input.CategoryId;
+        task.UserId = User.HasElevatedAccess() ? input.UserId : User.GetUserId();
+
+        await _context.SaveChangesAsync();
+        return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> Delete(int? id)
+    {
+        if (id is null)
+        {
+            return NotFound();
+        }
+
+        var task = await LoadTaskAsync(id.Value);
+        if (task is null)
+        {
+            return NotFound();
+        }
+
+        if (!CanAccessTask(task))
+        {
+            return Forbid();
+        }
+
+        return View(task);
+    }
+
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+        if (task is null)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!CanAccessTask(task))
+        {
+            return Forbid();
+        }
+
+        _context.Tasks.Remove(task);
+        await _context.SaveChangesAsync();
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<TaskEntity?> LoadTaskAsync(int id)
+    {
+        return await _context.Tasks
+            .Include(t => t.Category)
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Id == id);
+    }
+
+    private bool CanAccessTask(TaskEntity task)
+    {
+        return User.HasElevatedAccess() || task.UserId == User.GetUserId();
+    }
+
+    private async Task PopulateSelectionsAsync(TaskEntity? task = null)
+    {
+        ViewBag.CanAssignUsers = User.HasElevatedAccess();
+        ViewBag.Statuses = new SelectList(new[] { "New", "In Progress", "Done" }, task?.Status);
+        ViewBag.CategoryId = new SelectList(
+            await _context.Categories.OrderBy(c => c.Name).ToListAsync(),
+            "Id",
+            "Name",
+            task?.CategoryId);
+        ViewBag.UserId = new SelectList(
+            await _context.Users.OrderBy(u => u.FullName).ToListAsync(),
+            "Id",
+            "FullName",
+            task?.UserId ?? User.GetUserId());
     }
 }

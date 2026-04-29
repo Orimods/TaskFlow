@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskFlowApp.Data;
 
@@ -10,9 +11,11 @@ using TaskFlowApp.Data;
 namespace TaskFlow.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260420163754_AddAuthorizationAndOwnership")]
+    partial class AddAuthorizationAndOwnership
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.2");
@@ -93,9 +96,9 @@ namespace TaskFlow.Migrations
                             Id = 1,
                             CategoryId = 1,
                             Deadline = new DateTime(2026, 4, 25, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Собрать требования, определить этапы работы и назначить ответственных.",
+                            Description = "Собрать результаты и оформить пояснительную записку.",
                             Status = "In Progress",
-                            Title = "Подготовить план проекта",
+                            Title = "Подготовить отчёт по лабораторной",
                             UserId = 3
                         },
                         new
@@ -171,7 +174,7 @@ namespace TaskFlow.Migrations
                         new
                         {
                             Id = 3,
-                            FullName = "Кофтоногов Вадим",
+                            FullName = "Иван Петров",
                             RegisteredAt = new DateTime(2026, 1, 24, 0, 0, 0, 0, DateTimeKind.Utc),
                             Role = "User",
                             UserName = "ivan"
@@ -179,7 +182,7 @@ namespace TaskFlow.Migrations
                         new
                         {
                             Id = 4,
-                            FullName = "Виктор Пупкин",
+                            FullName = "Мария Соколова",
                             RegisteredAt = new DateTime(2026, 1, 24, 0, 0, 0, 0, DateTimeKind.Utc),
                             Role = "User",
                             UserName = "maria"
