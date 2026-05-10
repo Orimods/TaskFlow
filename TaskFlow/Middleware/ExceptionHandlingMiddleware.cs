@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using TaskFlow.Api;
 
 namespace TaskFlow.Middleware;
 
@@ -22,6 +23,16 @@ public class ExceptionHandlingMiddleware
         catch (Exception exception)
         {
             _logger.LogError(exception, "Unhandled application exception");
+
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(ApiResponse<object>.Fail("Внутренняя ошибка сервера."));
+                return;
+            }
+
             context.Features.Set<IExceptionHandlerFeature>(new ExceptionHandlerFeature { Error = exception });
             context.Response.Clear();
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
