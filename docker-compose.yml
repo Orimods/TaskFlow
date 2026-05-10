@@ -1,0 +1,66 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: TaskFlow/Dockerfile
+    container_name: taskflow-api
+    ports:
+      - "8080:5000"
+    environment:
+      ASPNETCORE_URLS: http://+:5000
+      DisableHttpsRedirection: "true"
+      ConnectionStrings__DefaultConnection: Data Source=/data/app.db
+      Jwt__Issuer: TaskFlow
+      Jwt__Audience: TaskFlowExternalClients
+      Jwt__Key: TaskFlow_Lab4_Development_Key_Change_In_Production_2026
+      Jwt__ExpiresMinutes: "120"
+      Cors__AllowedOrigins__0: http://localhost:3000
+      Cors__AllowedOrigins__1: http://localhost:8080
+    volumes:
+      - taskflow_data:/data
+    networks:
+      - taskflow-net
+
+  task-auditor:
+    build:
+      context: ./python_services/task_auditor
+    container_name: taskflow-task-auditor
+    depends_on:
+      - api
+    environment:
+      TASKFLOW_API_BASE_URL: http://api:5000
+      TASKFLOW_API_USER_ID: "1"
+      TASKFLOW_DEMO_WRITES: "true"
+      TASKFLOW_VERIFY_SSL: "true"
+    networks:
+      - taskflow-net
+    restart: on-failure
+
+  task-insights:
+    build:
+      context: ./python_services/task_insights
+    container_name: taskflow-task-insights
+    depends_on:
+      - api
+    environment:
+      TASKFLOW_API_BASE_URL: http://api:5000
+      TASKFLOW_API_USER_ID: "1"
+      TASKFLOW_VERIFY_SSL: "true"
+      TASKFLOW_REPORT_DIR: /app/reports
+      TASKFLOW_RUN_ONCE: "false"
+      TASKFLOW_INTERVAL_SECONDS: "3600"
+      TASKFLOW_CREATE_SUMMARY_TASK: "false"
+      TASKFLOW_SUMMARY_USER_ID: "1"
+    volumes:
+      - taskflow_reports:/app/reports
+    networks:
+      - taskflow-net
+    restart: unless-stopped
+
+networks:
+  taskflow-net:
+    driver: bridge
+
+volumes:
+  taskflow_data:
+  taskflow_reports:

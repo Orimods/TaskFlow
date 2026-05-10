@@ -119,7 +119,10 @@ public class Program
             app.UseHsts();
         }
 
-        app.UseHttpsRedirection();
+        if (!app.Configuration.GetValue<bool>("DisableHttpsRedirection"))
+        {
+            app.UseHttpsRedirection();
+        }
         app.UseRouting();
         app.UseCors("TaskFlowApiCors");
         app.UseAuthentication();
