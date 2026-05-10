@@ -36,26 +36,22 @@ services:
       - taskflow-net
     restart: on-failure
 
-  task-insights:
+  taskflow-telegram-bot:
     build:
-      context: ./python_services/task_insights
-    container_name: taskflow-task-insights
+      context: ./python_services/taskflow_telegram_bot
+    container_name: taskflow-telegram-bot
     depends_on:
       - api
     environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TASKFLOW_API_BASE_URL: http://api:5000
       TASKFLOW_API_USER_ID: "1"
       TASKFLOW_VERIFY_SSL: "true"
-      TASKFLOW_REPORT_DIR: /app/reports
-      TASKFLOW_RUN_ONCE: "false"
-      TASKFLOW_INTERVAL_SECONDS: "3600"
-      TASKFLOW_CREATE_SUMMARY_TASK: "false"
-      TASKFLOW_SUMMARY_USER_ID: "1"
-    volumes:
-      - taskflow_reports:/app/reports
+      TASKFLOW_ALLOWED_CHAT_IDS: ${TASKFLOW_ALLOWED_CHAT_IDS:-}
+      TASKFLOW_BOT_DRY_RUN: ${TASKFLOW_BOT_DRY_RUN:-false}
     networks:
       - taskflow-net
-    restart: unless-stopped
+    restart: on-failure
 
 networks:
   taskflow-net:
@@ -63,4 +59,3 @@ networks:
 
 volumes:
   taskflow_data:
-  taskflow_reports:

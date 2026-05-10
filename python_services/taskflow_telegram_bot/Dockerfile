@@ -9,4 +9,4 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "task_insights.py"]
+CMD ["python", "taskflow_telegram_bot.py"]
