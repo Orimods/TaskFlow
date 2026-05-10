@@ -56,7 +56,7 @@ public class AppDbContext : DbContext
                 Id = 1,
                 Title = "Подготовить план проекта",
                 Description = "Собрать требования, определить этапы работы и назначить ответственных.",
-                Deadline = new DateTime(2026, 4, 25),
+                Deadline = new DateTime(2026, 6, 10),
                 Status = "In Progress",
                 CategoryId = 1,
                 UserId = 3
@@ -66,7 +66,7 @@ public class AppDbContext : DbContext
                 Id = 2,
                 Title = "Проверить задачи команды",
                 Description = "Провести ревью задач и уточнить сроки выполнения.",
-                Deadline = new DateTime(2026, 4, 26),
+                Deadline = new DateTime(2026, 6, 12),
                 Status = "New",
                 CategoryId = 2,
                 UserId = 2
@@ -76,7 +76,7 @@ public class AppDbContext : DbContext
                 Id = 3,
                 Title = "Настроить резервное копирование",
                 Description = "Подготовить базовый регламент резервного копирования базы данных.",
-                Deadline = new DateTime(2026, 4, 30),
+                Deadline = new DateTime(2026, 6, 15),
                 Status = "Done",
                 CategoryId = 2,
                 UserId = 1

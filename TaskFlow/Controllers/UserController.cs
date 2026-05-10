@@ -18,9 +18,41 @@ public class UserController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? search, string? role, string? sort)
     {
-        return View(await _context.Users.Include(u => u.Tasks).OrderBy(u => u.FullName).ToListAsync());
+        var query = _context.Users
+            .Include(u => u.Tasks)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalizedSearch = search.Trim();
+            query = query.Where(u => u.FullName.Contains(normalizedSearch) || u.UserName.Contains(normalizedSearch));
+        }
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            query = query.Where(u => u.Role == role);
+        }
+
+        query = sort switch
+        {
+            "name_desc" => query.OrderByDescending(u => u.FullName),
+            "login" => query.OrderBy(u => u.UserName),
+            "login_desc" => query.OrderByDescending(u => u.UserName),
+            "role" => query.OrderBy(u => u.Role).ThenBy(u => u.FullName),
+            "role_desc" => query.OrderByDescending(u => u.Role).ThenBy(u => u.FullName),
+            "tasks" => query.OrderBy(u => u.Tasks.Count).ThenBy(u => u.FullName),
+            "tasks_desc" => query.OrderByDescending(u => u.Tasks.Count).ThenBy(u => u.FullName),
+            _ => query.OrderBy(u => u.FullName)
+        };
+
+        ViewBag.Search = search;
+        ViewBag.Role = role;
+        ViewBag.Sort = sort;
+        ViewBag.Roles = new SelectList(new[] { AppRoles.User, AppRoles.Manager, AppRoles.Admin }, role);
+
+        return View(await query.ToListAsync());
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -54,8 +86,25 @@ public class UserController : Controller
             return View(user);
         }
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        if (await UserNameExistsAsync(user.UserName))
+        {
+            ModelState.AddModelError(nameof(user.UserName), "Пользователь с таким логином уже существует.");
+            PopulateRoles(user.Role);
+            return View(user);
+        }
+
+        try
+        {
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError(string.Empty, "Не удалось сохранить пользователя. Проверьте данные и повторите попытку.");
+            PopulateRoles(user.Role);
+            return View(user);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -91,8 +140,25 @@ public class UserController : Controller
             return View(user);
         }
 
-        _context.Update(user);
-        await _context.SaveChangesAsync();
+        if (await UserNameExistsAsync(user.UserName, user.Id))
+        {
+            ModelState.AddModelError(nameof(user.UserName), "Пользователь с таким логином уже существует.");
+            PopulateRoles(user.Role);
+            return View(user);
+        }
+
+        try
+        {
+            _context.Update(user);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError(string.Empty, "Не удалось обновить пользователя. Проверьте данные и повторите попытку.");
+            PopulateRoles(user.Role);
+            return View(user);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -117,8 +183,15 @@ public class UserController : Controller
         var user = await _context.Users.FindAsync(id);
         if (user is not null)
         {
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                TempData["Error"] = "Не удалось удалить пользователя. Попробуйте позже.";
+            }
         }
 
         return RedirectToAction(nameof(Index));
@@ -127,5 +200,10 @@ public class UserController : Controller
     private void PopulateRoles(string? selectedRole = null)
     {
         ViewBag.Role = new SelectList(new[] { AppRoles.User, AppRoles.Manager, AppRoles.Admin }, selectedRole);
+    }
+
+    private async Task<bool> UserNameExistsAsync(string userName, int? excludedUserId = null)
+    {
+        return await _context.Users.AnyAsync(u => u.UserName == userName && (!excludedUserId.HasValue || u.Id != excludedUserId.Value));
     }
 }

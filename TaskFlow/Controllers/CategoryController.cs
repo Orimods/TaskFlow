@@ -17,9 +17,30 @@ public class CategoryController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? search, string? sort)
     {
-        return View(await _context.Categories.Include(c => c.Tasks).OrderBy(c => c.Name).ToListAsync());
+        var query = _context.Categories
+            .Include(c => c.Tasks)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalizedSearch = search.Trim();
+            query = query.Where(c => c.Name.Contains(normalizedSearch));
+        }
+
+        query = sort switch
+        {
+            "name_desc" => query.OrderByDescending(c => c.Name),
+            "tasks" => query.OrderBy(c => c.Tasks.Count).ThenBy(c => c.Name),
+            "tasks_desc" => query.OrderByDescending(c => c.Tasks.Count).ThenBy(c => c.Name),
+            _ => query.OrderBy(c => c.Name)
+        };
+
+        ViewBag.Search = search;
+        ViewBag.Sort = sort;
+
+        return View(await query.ToListAsync());
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -58,8 +79,17 @@ public class CategoryController : Controller
             return View(category);
         }
 
-        _context.Categories.Add(category);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Categories.Add(category);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError(string.Empty, "Не удалось сохранить категорию. Проверьте данные и повторите попытку.");
+            return View(category);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -90,8 +120,17 @@ public class CategoryController : Controller
             return View(category);
         }
 
-        _context.Update(category);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Update(category);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError(string.Empty, "Не удалось обновить категорию. Проверьте данные и повторите попытку.");
+            return View(category);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -118,8 +157,15 @@ public class CategoryController : Controller
         var category = await _context.Categories.FindAsync(id);
         if (category is not null)
         {
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Categories.Remove(category);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                TempData["Error"] = "Не удалось удалить категорию. Попробуйте позже.";
+            }
         }
 
         return RedirectToAction(nameof(Index));

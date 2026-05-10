@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using TaskFlow.Middleware;
 using TaskFlowApp.Data;
 
 namespace TaskFlow;
@@ -34,9 +35,10 @@ public class Program
             dbContext.Database.Migrate();
         }
 
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
+
         if (!app.Environment.IsDevelopment())
         {
-            app.UseExceptionHandler("/Home/Error");
             app.UseHsts();
         }
 
