@@ -6,13 +6,17 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 import requests
+import urllib3
 from dotenv import load_dotenv
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class TaskFlowClient:
-    def __init__(self, base_url: str, user_id: int) -> None:
+    def __init__(self, base_url: str, user_id: int, verify_ssl: bool) -> None:
         self.base_url = base_url.rstrip("/")
         self.user_id = user_id
+        self.verify_ssl = verify_ssl
         self.session = requests.Session()
 
     def login(self) -> dict[str, Any]:
@@ -56,7 +60,7 @@ class TaskFlowClient:
     def _request(self, method: str, path: str, json_data: dict[str, Any] | None = None, auth: bool = True) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         try:
-            response = self.session.request(method, url, json=json_data, timeout=10)
+            response = self.session.request(method, url, json=json_data, timeout=10, verify=self.verify_ssl)
         except requests.RequestException as error:
             raise RuntimeError(f"API is unavailable: {error}") from error
 
@@ -128,8 +132,9 @@ def main() -> int:
     base_url = os.getenv("TASKFLOW_API_BASE_URL", "http://localhost:5258")
     user_id = int(os.getenv("TASKFLOW_API_USER_ID", "1"))
     demo_writes = os.getenv("TASKFLOW_DEMO_WRITES", "true").lower() == "true"
+    verify_ssl = os.getenv("TASKFLOW_VERIFY_SSL", "false").lower() == "true"
 
-    client = TaskFlowClient(base_url, user_id)
+    client = TaskFlowClient(base_url, user_id, verify_ssl)
 
     try:
         user = client.login()
