@@ -85,6 +85,7 @@ class TaskFlowClient:
 class TelegramBot:
     def __init__(self, token: str, taskflow: TaskFlowClient, allowed_chat_ids: set[int]) -> None:
         self.base_url = f"https://api.telegram.org/bot{token}"
+        self.safe_base_url = "https://api.telegram.org/bot<hidden>"
         self.taskflow = taskflow
         self.allowed_chat_ids = allowed_chat_ids
         self.offset = 0
@@ -109,7 +110,7 @@ class TelegramBot:
             response.raise_for_status()
             payload = response.json()
         except requests.RequestException as error:
-            print(f"Telegram polling error: {error}", file=sys.stderr)
+            print(f"Telegram polling error: {self._hide_token(error)}", file=sys.stderr)
             return []
 
         if not payload.get("ok", False):
@@ -149,7 +150,10 @@ class TelegramBot:
                 timeout=10,
             ).raise_for_status()
         except requests.RequestException as error:
-            print(f"Telegram send error: {error}", file=sys.stderr)
+            print(f"Telegram send error: {self._hide_token(error)}", file=sys.stderr)
+
+    def _hide_token(self, error: requests.RequestException) -> str:
+        return str(error).replace(self.base_url, self.safe_base_url)
 
 
 def _extract_error(response: requests.Response) -> str:
