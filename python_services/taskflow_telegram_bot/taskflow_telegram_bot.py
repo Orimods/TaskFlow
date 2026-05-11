@@ -3,7 +3,9 @@ import os
 import sys
 import time
 from collections import Counter
+from dataclasses import dataclass
 from datetime import date
+from html import escape
 from typing import Any
 
 import requests
@@ -11,6 +13,12 @@ import urllib3
 from dotenv import load_dotenv
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+@dataclass
+class BotResponse:
+    text: str
+    reply_markup: dict[str, Any] | None = None
 
 
 class TaskFlowClient:
@@ -66,6 +74,10 @@ class TaskFlowClient:
         except requests.RequestException as error:
             raise RuntimeError(f"TaskFlow API is unavailable: {error}") from error
 
+        if response.status_code == 401 and path != "/api/auth/login":
+            self.login()
+            response = self.session.request(method, url, json=json_data, timeout=15, verify=self.verify_ssl)
+
         if response.status_code in (401, 403):
             raise RuntimeError(f"TaskFlow API access denied ({response.status_code}): {_extract_error(response)}")
         if response.status_code >= 400:
@@ -92,6 +104,7 @@ class TelegramBot:
 
     def run(self) -> None:
         user = self.taskflow.login()
+        self._set_commands()
         print(f"TaskFlow Telegram bot started as {user['fullName']} ({user['role']})")
         print("Waiting for Telegram commands...")
 
@@ -123,6 +136,10 @@ class TelegramBot:
         return updates
 
     def _handle_update(self, update: dict[str, Any]) -> None:
+        if "callback_query" in update:
+            self._handle_callback(update["callback_query"])
+            return
+
         message = update.get("message") or {}
         chat = message.get("chat") or {}
         chat_id = chat.get("id")
@@ -132,25 +149,79 @@ class TelegramBot:
             return
 
         if self.allowed_chat_ids and chat_id not in self.allowed_chat_ids:
-            self._send_message(chat_id, "Access denied for this chat.")
+            self._send_message(chat_id, BotResponse("Access denied for this chat."))
             return
 
         try:
-            answer = handle_command(self.taskflow, text)
+            response = handle_command(self.taskflow, text)
         except RuntimeError as error:
-            answer = f"Error: {error}"
+            response = BotResponse(f"<b>Error</b>\n{escape(str(error))}")
+        except ValueError:
+            response = BotResponse("<b>Error</b>\nCheck command format and try again.", main_menu())
 
-        self._send_message(chat_id, answer)
+        self._send_message(chat_id, response)
 
-    def _send_message(self, chat_id: int, text: str) -> None:
+    def _handle_callback(self, callback_query: dict[str, Any]) -> None:
+        chat_id = callback_query["message"]["chat"]["id"]
+        callback_id = callback_query["id"]
+        command = callback_query.get("data") or "/help"
+
+        if self.allowed_chat_ids and chat_id not in self.allowed_chat_ids:
+            self._answer_callback(callback_id)
+            self._send_message(chat_id, BotResponse("Access denied for this chat."))
+            return
+
+        try:
+            response = handle_command(self.taskflow, command)
+        except RuntimeError as error:
+            response = BotResponse(f"<b>Error</b>\n{escape(str(error))}", main_menu())
+        except ValueError:
+            response = BotResponse("<b>Error</b>\nCheck command format and try again.", main_menu())
+
+        self._answer_callback(callback_id)
+        self._send_message(chat_id, response)
+
+    def _send_message(self, chat_id: int, response: BotResponse) -> None:
+        payload: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": response.text[:3900],
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        if response.reply_markup:
+            payload["reply_markup"] = response.reply_markup
+
         try:
             requests.post(
                 f"{self.base_url}/sendMessage",
-                json={"chat_id": chat_id, "text": text[:3900]},
+                json=payload,
                 timeout=10,
             ).raise_for_status()
         except requests.RequestException as error:
             print(f"Telegram send error: {self._hide_token(error)}", file=sys.stderr)
+
+    def _answer_callback(self, callback_id: str) -> None:
+        try:
+            requests.post(
+                f"{self.base_url}/answerCallbackQuery",
+                json={"callback_query_id": callback_id},
+                timeout=10,
+            ).raise_for_status()
+        except requests.RequestException as error:
+            print(f"Telegram callback error: {self._hide_token(error)}", file=sys.stderr)
+
+    def _set_commands(self) -> None:
+        commands = [
+            {"command": "start", "description": "open TaskFlow menu"},
+            {"command": "tasks", "description": "show nearest tasks"},
+            {"command": "stats", "description": "show task statistics"},
+            {"command": "urgent", "description": "show urgent tasks"},
+            {"command": "help", "description": "show command help"},
+        ]
+        try:
+            requests.post(f"{self.base_url}/setMyCommands", json={"commands": commands}, timeout=10).raise_for_status()
+        except requests.RequestException as error:
+            print(f"Telegram menu setup error: {self._hide_token(error)}", file=sys.stderr)
 
     def _hide_token(self, error: requests.RequestException) -> str:
         return str(error).replace(self.base_url, self.safe_base_url)
@@ -164,26 +235,35 @@ def _extract_error(response: requests.Response) -> str:
     return payload.get("error") or json.dumps(payload, ensure_ascii=False)
 
 
-def handle_command(client: TaskFlowClient, command: str) -> str:
+def handle_command(client: TaskFlowClient, command: str) -> BotResponse:
     if command == "/start" or command == "/help":
-        return (
-            "TaskFlow bot commands:\n"
-            "/tasks - nearest tasks\n"
-            "/stats - task statistics\n"
-            "/urgent - urgent tasks\n"
-            "/done 3 - mark task #3 as done\n"
-            "/create Title | Description | 2026-06-20 - create task"
+        return BotResponse(
+            "<b>TaskFlow Bot</b>\n"
+            "Управление задачами прямо из Telegram.\n\n"
+            "<b>Команды</b>\n"
+            "/tasks - ближайшие задачи\n"
+            "/stats - статистика\n"
+            "/urgent - срочные задачи\n"
+            "/done 3 - отметить задачу выполненной\n"
+            "/create Название | Описание | 2026-06-20 - создать задачу",
+            main_menu(),
         )
 
     if command == "/tasks":
-        return format_tasks(client.get_tasks()[:8])
+        return BotResponse(format_tasks(client.get_tasks()[:8]), main_menu())
 
     if command == "/stats":
         tasks = client.get_tasks()
         statuses = Counter(task["status"] for task in tasks)
-        lines = [f"Total tasks: {len(tasks)}", "By status:"]
-        lines.extend(f"- {status}: {count}" for status, count in statuses.items())
-        return "\n".join(lines)
+        lines = [
+            "<b>TaskFlow Statistics</b>",
+            f"Всего задач: <b>{len(tasks)}</b>",
+            "",
+            f"New: <b>{statuses.get('New', 0)}</b>",
+            f"In Progress: <b>{statuses.get('In Progress', 0)}</b>",
+            f"Done: <b>{statuses.get('Done', 0)}</b>",
+        ]
+        return BotResponse("\n".join(lines), main_menu())
 
     if command == "/urgent":
         today = date.today()
@@ -191,34 +271,65 @@ def handle_command(client: TaskFlowClient, command: str) -> str:
             task for task in client.get_tasks()
             if task["status"] != "Done" and 0 <= (date.fromisoformat(task["deadline"][:10]) - today).days <= 3
         ]
-        return format_tasks(urgent) if urgent else "No urgent tasks for the next 3 days."
+        text = format_tasks(urgent) if urgent else "<b>Urgent tasks</b>\nСрочных задач на ближайшие 3 дня нет."
+        return BotResponse(text, main_menu())
 
     if command.startswith("/done "):
         task_id = int(command.split(maxsplit=1)[1])
         task = client.mark_done(task_id)
-        return f"Task #{task['id']} marked as Done: {task['title']}"
+        return BotResponse(
+            f"<b>Готово</b>\nЗадача #{task['id']} отмечена как Done:\n{escape(task['title'])}",
+            main_menu(),
+        )
 
     if command.startswith("/create "):
         parts = [part.strip() for part in command.removeprefix("/create ").split("|")]
         if len(parts) != 3:
-            return "Use: /create Title | Description | 2026-06-20"
+            return BotResponse(
+                "<b>Формат создания задачи</b>\n"
+                "/create Название | Описание | 2026-06-20",
+                main_menu(),
+            )
         task = client.create_task(parts[0], parts[1], parts[2])
-        return f"Created task #{task['id']}: {task['title']}"
+        return BotResponse(
+            f"<b>Задача создана</b>\n#{task['id']} {escape(task['title'])}\nСрок: {escape(task['deadline'][:10])}",
+            main_menu(),
+        )
 
-    return "Unknown command. Send /help."
+    return BotResponse("Неизвестная команда. Нажми /help или выбери кнопку ниже.", main_menu())
 
 
 def format_tasks(tasks: list[dict[str, Any]]) -> str:
     if not tasks:
-        return "No tasks found."
+        return "<b>TaskFlow Tasks</b>\nЗадачи не найдены."
 
-    lines = ["TaskFlow tasks:"]
+    lines = ["<b>TaskFlow Tasks</b>"]
     for task in tasks:
-        lines.append(
-            f"#{task['id']} {task['title']} | {task['deadline'][:10]} | "
-            f"{task['status']} | {task['userFullName']}"
+        lines.extend(
+            [
+                "",
+                f"<b>#{task['id']} {escape(task['title'])}</b>",
+                f"Статус: {escape(task['status'])}",
+                f"Срок: {escape(task['deadline'][:10])}",
+                f"Ответственный: {escape(task['userFullName'])}",
+            ]
         )
     return "\n".join(lines)
+
+
+def main_menu() -> dict[str, Any]:
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "Задачи", "callback_data": "/tasks"},
+                {"text": "Статистика", "callback_data": "/stats"},
+            ],
+            [
+                {"text": "Срочные", "callback_data": "/urgent"},
+                {"text": "Справка", "callback_data": "/help"},
+            ],
+        ]
+    }
 
 
 def parse_allowed_chat_ids(value: str) -> set[int]:
@@ -233,7 +344,7 @@ def run_dry_check(client: TaskFlowClient) -> None:
     print()
     for command in ("/help", "/stats", "/tasks", "/urgent"):
         print(f"> {command}")
-        print(handle_command(client, command))
+        print(handle_command(client, command).text)
         print()
 
 
